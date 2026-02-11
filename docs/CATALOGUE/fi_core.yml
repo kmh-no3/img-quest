@@ -1,0 +1,181 @@
+# FI Core Catalogue (MVP)
+# - P0 only (start small)
+# - Keep it implementation-agnostic (concepts > SAP terms)
+# - beginner_mode: 初心者モードで表示するかどうか
+# - beginner_*: 初心者向けの説明・推奨値
+
+- id: FI-CORE-001
+  title: 会計年度バリアント
+  priority: P0
+  description: 会計年度/期間の定義。締め運用・移行・採番に影響。
+  beginner_mode: true
+  beginner_title: 決算月の設定
+  beginner_description: 御社の決算月（会計年度の終わり）を教えてください。
+  beginner_why: 月次の締め処理や年度の管理に必要です。多くの日本企業は3月決算（4月開始）です。
+  inputs:
+    - name: fiscal_year_variant
+      type: select
+      options: [K4, V3, CUSTOM]
+      recommended: K4
+      option_labels:
+        K4: "4月開始（3月決算）"
+        V3: "1月開始（12月決算）"
+        CUSTOM: "その他（カスタム）"
+  depends_on: []
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW, MIGRATION_VIEW]
+
+- id: FI-CORE-002
+  title: 会社コード基本情報（通貨・国）
+  priority: P0
+  description: 会社コード、ローカル通貨、国（税制）などの前提。
+  beginner_mode: true
+  beginner_title: 会社の基本情報
+  beginner_description: 会社の通貨と所在国を教えてください。
+  beginner_why: 取引の通貨や税制を正しく処理するために必要です。
+  inputs:
+    - name: company_code
+      type: string
+      label: 会社コード（任意の識別コード）
+      recommended: "1000"
+    - name: local_currency
+      type: select
+      options: [JPY, USD, EUR, OTHER]
+      recommended: JPY
+      option_labels:
+        JPY: 日本円
+        USD: 米ドル
+        EUR: ユーロ
+        OTHER: その他
+    - name: country
+      type: select
+      options: [JP, US, EU, OTHER]
+      recommended: JP
+      option_labels:
+        JP: 日本
+        US: アメリカ
+        EU: ヨーロッパ
+        OTHER: その他
+  depends_on: [FI-CORE-001]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW, MIGRATION_VIEW]
+
+- id: FI-CORE-003
+  title: 期間オープン/クローズ運用
+  priority: P0
+  description: 月次締めの統制。締め後の例外方針も含む。
+  beginner_mode: true
+  beginner_title: 月次締めの運用ルール
+  beginner_description: 月次締め後の修正をどこまで許可しますか？
+  beginner_why: 締め後の誤修正を防ぐための統制です。厳格な運用が推奨されます。
+  inputs:
+    - name: close_policy
+      type: select
+      options: [STRICT, LIMITED_EXCEPTIONS]
+      recommended: STRICT
+      option_labels:
+        STRICT: 厳格（締め後は原則修正不可）
+        LIMITED_EXCEPTIONS: 限定的な例外を許可
+    - name: monthly_close_days
+      type: number
+      label: 月次締めまでの日数（翌月〇営業日）
+      recommended: 5
+  depends_on: [FI-CORE-001, FI-CORE-002]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW]
+
+- id: FI-CORE-004
+  title: 伝票タイプと採番ルール
+  priority: P0
+  description: 伝票タイプ別の採番（会社コード×年度×タイプなど）。
+  beginner_mode: false  # 初心者モードでは非表示（自動設定）
+  inputs:
+    - name: numbering_key
+      type: select
+      options: [CC_YEAR_DOCTYPE, CC_YEAR]
+      recommended: CC_YEAR_DOCTYPE
+  depends_on: [FI-CORE-002]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW, MIGRATION_VIEW]
+
+- id: FI-CORE-005
+  title: 勘定科目方針（BS/PL・オープンアイテム）
+  priority: P0
+  description: 科目体系、BS/PL区分、未消込管理の有無。
+  beginner_mode: true
+  beginner_title: 勘定科目の管理方針
+  beginner_description: 売掛金・買掛金などの未入金・未払金を個別に管理しますか？
+  beginner_why: 取引先ごとの残高を正確に把握するために重要です。
+  inputs:
+    - name: coa_policy
+      type: select
+      options: [GLOBAL_COA, LOCAL_COA, HYBRID]
+      recommended: LOCAL_COA
+      option_labels:
+        GLOBAL_COA: グローバル統一
+        LOCAL_COA: 日本独自の勘定体系
+        HYBRID: ハイブリッド（両方併用）
+    - name: open_item_accounts
+      type: multiselect
+      options: [AR_RECON, AP_RECON, BANK, CLEARING, OTHER]
+      recommended: [AR_RECON, AP_RECON, BANK]
+      option_labels:
+        AR_RECON: 売掛金（得意先）
+        AP_RECON: 買掛金（仕入先）
+        BANK: 銀行口座
+        CLEARING: 仮勘定
+        OTHER: その他
+  depends_on: [FI-CORE-002]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW, MIGRATION_VIEW]
+
+- id: FI-APAR-001
+  title: BP方針（得意先/仕入先）
+  priority: P0
+  description: BP統合の方針、キー設計、必須項目。
+  beginner_mode: false  # 初心者モードでは非表示（自動設定）
+  inputs:
+    - name: bp_unified
+      type: select
+      options: ["YES", "NO"]
+      recommended: "NO"
+  depends_on: [FI-CORE-002]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, MIGRATION_VIEW]
+
+- id: FI-APAR-002
+  title: 統制勘定（Recon Account）方針
+  priority: P0
+  description: サブレジャ残高とGL整合のための統制勘定設計。
+  beginner_mode: false  # 初心者モードでは非表示（自動設定）
+  inputs:
+    - name: recon_per_bp_group
+      type: select
+      options: ["YES", "NO"]
+      recommended: "NO"
+  depends_on: [FI-CORE-005, FI-APAR-001]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW, MIGRATION_VIEW]
+
+- id: FI-APAR-003
+  title: 支払条件・支払方法・消込単位
+  priority: P0
+  description: 商習慣（締め/検収/支払サイト）と消込単位の決定。
+  beginner_mode: true
+  beginner_title: 支払いサイクルの設定
+  beginner_description: 一般的な支払条件（締め日から何日後に支払うか）を教えてください。
+  beginner_why: 買掛金の支払期限を管理するために必要です。
+  inputs:
+    - name: payment_terms_common
+      type: select
+      options: [EOM_30, EOM_60, EOM_90, OTHER]
+      recommended: EOM_30
+      option_labels:
+        EOM_30: 月末締め翌月末払い（30日）
+        EOM_60: 月末締め翌々月末払い（60日）
+        EOM_90: 月末締め3ヶ月後払い（90日）
+        OTHER: その他
+    - name: clearing_unit
+      type: select
+      options: [INVOICE, CUSTOMER_VENDOR, CONTRACT, OTHER]
+      recommended: INVOICE
+      option_labels:
+        INVOICE: 請求書単位
+        CUSTOMER_VENDOR: 取引先単位
+        CONTRACT: 契約単位
+        OTHER: その他
+  depends_on: [FI-APAR-001, FI-APAR-002]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW]
