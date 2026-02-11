@@ -1,9 +1,29 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function GuidePage() {
   const router = useRouter();
+
+  useEffect(() => {
+    // Mermaid図を描画
+    const initMermaid = async () => {
+      const mermaid = (await import('mermaid')).default;
+      mermaid.initialize({ 
+        startOnLoad: true,
+        theme: 'default',
+        securityLevel: 'loose',
+        flowchart: {
+          useMaxWidth: true,
+          htmlLabels: true,
+          curve: 'basis'
+        }
+      });
+      mermaid.run();
+    };
+    initMermaid();
+  }, []);
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -25,8 +45,11 @@ export default function GuidePage() {
           <a href="#detailed" className="block text-primary-600 hover:text-primary-700 hover:underline">
             2. 詳細ガイド
           </a>
+          <a href="#sap-structure" className="block text-primary-600 hover:text-primary-700 hover:underline">
+            3. SAP FI構造とIMG-Questの関係
+          </a>
           <a href="#glossary" className="block text-primary-600 hover:text-primary-700 hover:underline">
-            3. SAP用語集
+            4. SAP用語集
           </a>
         </nav>
       </div>
@@ -349,10 +372,222 @@ export default function GuidePage() {
         </div>
       </section>
 
-      {/* セクション3: SAP用語集 */}
+      {/* セクション3: SAP FI構造とIMG-Questの関係 */}
+      <section id="sap-structure" className="mb-12">
+        <div className="card">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">3. SAP FI構造とIMG-Questの関係</h2>
+          <p className="text-gray-700 mb-6">
+            IMG-Questで設定する8つの項目が、SAP FI全体のどこに位置づけられ、どのように関連しているかを図で説明します。
+            これにより、「この質問に答えると、SAPのどの設定が決まるのか」を直感的に理解できます。
+          </p>
+          
+          <div className="space-y-8">
+            {/* アーキテクチャ図 */}
+            <div>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-4 border-b-2 border-primary-200 pb-2">
+                3.1 SAP FI全体アーキテクチャ
+              </h3>
+              <p className="text-gray-700 mb-4">
+                SAP FIは階層構造で構成されています。IMG-Questの8つの設定項目は、この階層のどこに該当するかを示します。
+              </p>
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <pre className="mermaid">
+{`graph TB
+    subgraph orgStructure[組織構造層]
+        fiscalYear[会計年度バリアント<br/>FI-CORE-001]
+        companyCode[会社コード<br/>FI-CORE-002]
+        periodClose[期間管理<br/>FI-CORE-003]
+    end
+    
+    subgraph masterData[マスタデータ層]
+        coa[勘定科目<br/>FI-CORE-005]
+        bp[BP得意先/仕入先<br/>FI-APAR-001]
+        recon[統制勘定<br/>FI-APAR-002]
+        payment[支払条件<br/>FI-APAR-003]
+    end
+    
+    subgraph transactionConfig[トランザクション設定層]
+        docType[伝票タイプ/採番<br/>FI-CORE-004]
+    end
+    
+    subgraph runtime[実行時処理]
+        posting[伝票登録]
+        clearing[消込処理]
+        reporting[レポート出力]
+    end
+    
+    orgStructure --> masterData
+    masterData --> transactionConfig
+    transactionConfig --> runtime`}
+                </pre>
+              </div>
+              <div className="mt-4 space-y-2">
+                <div className="flex items-start gap-3">
+                  <span className="font-semibold text-gray-900 min-w-[150px]">組織構造層:</span>
+                  <p className="text-gray-700">会社の基本設定（会計年度、通貨、締めルール）を定義します。</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="font-semibold text-gray-900 min-w-[150px]">マスタデータ層:</span>
+                  <p className="text-gray-700">取引で使用する基準情報（勘定科目、取引先、支払条件）を管理します。</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="font-semibold text-gray-900 min-w-[150px]">トランザクション設定層:</span>
+                  <p className="text-gray-700">伝票処理のルール（採番方式など）を設定します。</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="font-semibold text-gray-900 min-w-[150px]">実行時処理:</span>
+                  <p className="text-gray-700">実際の業務でこれらの設定が使われる場面です。</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 依存関係図 */}
+            <div>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-4 border-b-2 border-primary-200 pb-2">
+                3.2 設定項目の依存関係
+              </h3>
+              <p className="text-gray-700 mb-4">
+                8つの設定項目には前後関係があります。矢印は「左の項目を決めないと、右の項目が設定できない」という依存関係を表します。
+              </p>
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <pre className="mermaid">
+{`graph LR
+    CORE001[FI-CORE-001<br/>会計年度]
+    CORE002[FI-CORE-002<br/>会社コード]
+    CORE003[FI-CORE-003<br/>期間管理]
+    CORE004[FI-CORE-004<br/>伝票採番]
+    CORE005[FI-CORE-005<br/>勘定科目]
+    APAR001[FI-APAR-001<br/>BP方針]
+    APAR002[FI-APAR-002<br/>統制勘定]
+    APAR003[FI-APAR-003<br/>支払条件]
+    
+    CORE001 --> CORE002
+    CORE001 --> CORE003
+    CORE002 --> CORE003
+    CORE002 --> CORE004
+    CORE002 --> CORE005
+    CORE002 --> APAR001
+    CORE005 --> APAR002
+    APAR001 --> APAR002
+    APAR001 --> APAR003
+    APAR002 --> APAR003`}
+                </pre>
+              </div>
+              <div className="mt-4 bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                <p className="text-sm text-yellow-900">
+                  <strong>例:</strong> 会計年度（FI-CORE-001）を先に決めないと、会社コード（FI-CORE-002）や期間管理（FI-CORE-003）の設定ができません。
+                  これがバックログ画面で「前の設定が未完了」と表示される理由です。
+                </p>
+              </div>
+            </div>
+
+            {/* データフロー図 */}
+            <div>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-4 border-b-2 border-primary-200 pb-2">
+                3.3 業務処理での設定値の利用
+              </h3>
+              <p className="text-gray-700 mb-4">
+                設定した値が実際の業務（伝票登録→転記→消込→締め）でどのように使われるかを示します。
+              </p>
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <pre className="mermaid">
+{`sequenceDiagram
+    participant User as ユーザー
+    participant Doc as 伝票登録
+    participant Post as 転記エンジン
+    participant Clear as 消込処理
+    participant Close as 月次締め
+    
+    Note over User,Close: IMG-Quest設定値が使われる場面
+    
+    User->>Doc: 取引入力
+    Note right of Doc: FI-CORE-004 伝票採番<br/>FI-APAR-001 BP選択
+    
+    Doc->>Post: 伝票転記
+    Note right of Post: FI-CORE-005 勘定科目<br/>FI-APAR-002 統制勘定<br/>FI-CORE-002 通貨換算
+    
+    Post->>Clear: 未消込アイテム作成
+    Note right of Clear: FI-APAR-003 支払条件<br/>FI-APAR-003 消込単位
+    
+    Clear->>Close: 消込完了後
+    Note right of Close: FI-CORE-001 会計期間<br/>FI-CORE-003 締めルール`}
+                </pre>
+              </div>
+              <div className="mt-4">
+                <p className="text-gray-700">
+                  各業務ステップで参照される設定項目が明示されています。例えば、伝票登録時には採番ルール（FI-CORE-004）やBP情報（FI-APAR-001）が使われ、
+                  月次締めでは会計期間（FI-CORE-001）や締めルール（FI-CORE-003）が参照されます。
+                </p>
+              </div>
+            </div>
+
+            {/* SAP IMG設定パス対応表 */}
+            <div>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-4 border-b-2 border-primary-200 pb-2">
+                3.4 SAP IMG設定パス対応表
+              </h3>
+              <p className="text-gray-700 mb-4">
+                各IMG-Quest項目が、実際のSAP IMGのどの設定パスに対応するかを示します（参考情報）。
+              </p>
+              <div className="bg-gray-50 p-4 rounded-lg overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-gray-300">
+                      <th className="text-left py-3 pr-4 font-semibold text-gray-900">IMG-Quest項目</th>
+                      <th className="text-left py-3 font-semibold text-gray-900">SAP IMG設定パス（参考）</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-gray-700">
+                    <tr className="border-b border-gray-200">
+                      <td className="py-3 pr-4 font-medium">FI-CORE-001<br/>会計年度バリアント</td>
+                      <td className="py-3">SPRO → 財務会計 → 財務会計グローバル設定 → 会計年度 → 会計年度バリアント保守</td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-3 pr-4 font-medium">FI-CORE-002<br/>会社コード</td>
+                      <td className="py-3">SPRO → エンタープライズ構造 → 定義 → 財務会計 → 会社コード定義</td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-3 pr-4 font-medium">FI-CORE-003<br/>期間オープン/クローズ</td>
+                      <td className="py-3">SPRO → 財務会計 → 財務会計グローバル設定 → 伝票 → 転記期間 → 転記期間バリアント保守</td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-3 pr-4 font-medium">FI-CORE-004<br/>伝票タイプと採番</td>
+                      <td className="py-3">SPRO → 財務会計 → 財務会計グローバル設定 → 伝票 → 伝票タイプ定義 / 番号範囲保守</td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-3 pr-4 font-medium">FI-CORE-005<br/>勘定科目方針</td>
+                      <td className="py-3">SPRO → 財務会計 → 財務会計グローバル設定 → 勘定コード表 → 勘定科目 → 勘定科目の処理</td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-3 pr-4 font-medium">FI-APAR-001<br/>BP方針</td>
+                      <td className="py-3">SPRO → 財務会計 → 売掛金管理と買掛金管理 → ビジネスパートナ → ビジネスパートナ設定</td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-3 pr-4 font-medium">FI-APAR-002<br/>統制勘定方針</td>
+                      <td className="py-3">SPRO → 財務会計 → 売掛金管理と買掛金管理 → 勘定科目 → 統制勘定の割当</td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-3 pr-4 font-medium">FI-APAR-003<br/>支払条件・消込</td>
+                      <td className="py-3">SPRO → 財務会計 → 売掛金管理と買掛金管理 → 業務処理 → 支払条件 / 消込 → 設定</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 bg-blue-50 border-l-4 border-blue-500 p-4">
+                <p className="text-sm text-blue-900">
+                  <strong>注:</strong> 上記のIMGパスはSAP ERP（ECC）を基準にしています。S/4HANAでは一部パスが異なる場合があります。
+                  IMG-Questは設定項目の「概念」を扱うため、具体的なトランザクションコードやIMGパスはプロジェクトごとに確認してください。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* セクション4: SAP用語集 */}
       <section id="glossary" className="mb-12">
         <div className="card">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">3. SAP用語集</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">4. SAP用語集</h2>
           <p className="text-gray-700 mb-6">
             IMG-Questで扱う主要なSAP FI用語の解説です。
           </p>
