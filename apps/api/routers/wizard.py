@@ -8,7 +8,8 @@ from database import get_db
 from dependencies import get_project_or_404
 from services.dependency_engine import (
     get_next_questions_for_project,
-    update_project_backlog
+    update_project_backlog,
+    expand_backlog_after_answer
 )
 
 router = APIRouter(prefix="/api/projects/{project_id}/wizard", tags=["wizard"])
@@ -243,8 +244,11 @@ def submit_answer(
     )
     db_decision = crud.create_decision(db, project.id, decision)
     
-    # バックログステータスを更新
+    # 回答に基づいてバックログを動的展開（P1項目の追加など）
     mode_filter = project.mode.value if project.mode else 'EXPERT'
+    expand_backlog_after_answer(db, project.id, answer_data.config_item_id, mode_filter=mode_filter)
+    
+    # バックログステータスを更新
     update_project_backlog(db, project.id, mode_filter=mode_filter)
     
     return {

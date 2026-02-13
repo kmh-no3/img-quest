@@ -1,5 +1,5 @@
 # FI Core Catalogue (MVP)
-# - P0 only (start small)
+# - P0/P1 items for 10-20 question wizard
 # - Keep it implementation-agnostic (concepts > SAP terms)
 # - beginner_mode: 初心者モードで表示するかどうか
 # - beginner_*: 初心者向けの説明・推奨値
@@ -179,3 +179,179 @@
         OTHER: その他
   depends_on: [FI-APAR-001, FI-APAR-002]
   produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW]
+
+# ============================================================
+# P1 items — 税・差額・締め後運用・レポート
+# ============================================================
+
+- id: FI-TAX-001
+  title: 税コード設定
+  priority: P1
+  description: 消費税（内税/外税）、税コード体系、税率マスタの設計。
+  beginner_mode: true
+  beginner_title: 消費税の設定
+  beginner_description: 消費税の計算方法（内税・外税）と税率を設定します。
+  beginner_why: 日本の消費税（10%・軽減税率8%）を正しく処理するために必要です。
+  inputs:
+    - name: tax_calculation
+      type: select
+      options: [EXCLUSIVE, INCLUSIVE, BOTH]
+      recommended: EXCLUSIVE
+      option_labels:
+        EXCLUSIVE: 外税方式（税別表示）
+        INCLUSIVE: 内税方式（税込表示）
+        BOTH: 併用（取引により切替）
+    - name: tax_rates
+      type: multiselect
+      options: [STANDARD_10, REDUCED_8, ZERO, EXEMPT]
+      recommended: [STANDARD_10, REDUCED_8]
+      option_labels:
+        STANDARD_10: 標準税率（10%）
+        REDUCED_8: 軽減税率（8%）
+        ZERO: ゼロ税率
+        EXEMPT: 非課税
+    - name: rounding_rule_tax
+      type: select
+      options: [ROUND, TRUNCATE, ROUND_UP]
+      recommended: TRUNCATE
+      option_labels:
+        ROUND: 四捨五入
+        TRUNCATE: 切り捨て
+        ROUND_UP: 切り上げ
+  depends_on: [FI-CORE-002]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW]
+
+- id: FI-DIFF-001
+  title: 端数差額・許容差額設定
+  priority: P1
+  description: 通貨端数処理、支払/入金差額の自動消込許容額の設定。
+  beginner_mode: true
+  beginner_title: 端数・差額の処理ルール
+  beginner_description: 支払時や消込時に発生する少額差額をどう処理しますか？
+  beginner_why: 1円未満の端数や少額の過不足を自動処理するルールが必要です。
+  inputs:
+    - name: rounding_method
+      type: select
+      options: [TRUNCATE, ROUND, ROUND_UP]
+      recommended: TRUNCATE
+      option_labels:
+        TRUNCATE: 切り捨て
+        ROUND: 四捨五入
+        ROUND_UP: 切り上げ
+    - name: tolerance_amount
+      type: number
+      label: 許容差額（自動消込する最大金額）
+      recommended: 100
+    - name: difference_account_policy
+      type: select
+      options: [SINGLE_ACCOUNT, BY_TYPE]
+      recommended: SINGLE_ACCOUNT
+      option_labels:
+        SINGLE_ACCOUNT: 差額勘定を1つに集約
+        BY_TYPE: 支払差額・入金差額で分離
+  depends_on: [FI-CORE-005, FI-APAR-003]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW]
+
+- id: FI-DIFF-002
+  title: 支払/入金差額処理
+  priority: P1
+  description: 過払い・不足払い時の差額処理方針（部分消込・残余処理）。
+  beginner_mode: false
+  inputs:
+    - name: partial_payment_policy
+      type: select
+      options: [ALLOW, DENY, ALLOW_WITH_REASON]
+      recommended: ALLOW_WITH_REASON
+      option_labels:
+        ALLOW: 部分入金を許可
+        DENY: 部分入金を不可
+        ALLOW_WITH_REASON: 理由付きで許可
+    - name: overpayment_policy
+      type: select
+      options: [CREDIT_MEMO, REFUND, MANUAL]
+      recommended: CREDIT_MEMO
+      option_labels:
+        CREDIT_MEMO: クレジットメモ自動作成
+        REFUND: 返金処理
+        MANUAL: 手動対応
+    - name: residual_item_handling
+      type: select
+      options: [AUTO_WRITEOFF, MANUAL_CLEAR, CARRY_FORWARD]
+      recommended: MANUAL_CLEAR
+      option_labels:
+        AUTO_WRITEOFF: 自動償却
+        MANUAL_CLEAR: 手動消込
+        CARRY_FORWARD: 繰越
+  depends_on: [FI-APAR-003, FI-DIFF-001]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW]
+
+- id: FI-CLOSE-001
+  title: 締め後運用（例外権限・監査ログ）
+  priority: P1
+  description: 締め後の例外転記に必要な権限設計と監査証跡の方針。
+  beginner_mode: true
+  beginner_title: 締め後の修正ルール
+  beginner_description: 月次締め後にどうしても修正が必要な場合の運用ルールを決めます。
+  beginner_why: 締め後の修正は監査上リスクが高いため、承認フローと記録が必要です。
+  inputs:
+    - name: exception_posting_auth
+      type: select
+      options: [MANAGER_ONLY, DUAL_APPROVAL, DISABLED]
+      recommended: DUAL_APPROVAL
+      option_labels:
+        MANAGER_ONLY: 管理者のみ許可
+        DUAL_APPROVAL: ダブルチェック（申請＋承認）
+        DISABLED: 例外転記を禁止
+    - name: audit_log_policy
+      type: select
+      options: [ALL_CHANGES, EXCEPTIONS_ONLY, NONE]
+      recommended: ALL_CHANGES
+      option_labels:
+        ALL_CHANGES: 全変更を記録
+        EXCEPTIONS_ONLY: 例外操作のみ記録
+        NONE: 記録しない
+    - name: retention_period_months
+      type: number
+      label: 監査ログ保持期間（月）
+      recommended: 84
+  depends_on: [FI-CORE-003]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK, TEST_VIEW]
+
+- id: FI-RPT-001
+  title: 基本レポート（試算表・未消込一覧）
+  priority: P1
+  description: 標準出力する財務レポートの種類と出力頻度の方針。
+  beginner_mode: true
+  beginner_title: 定期レポートの設定
+  beginner_description: 月次で出力する財務レポートの種類を選択してください。
+  beginner_why: 月次決算や経営報告に必要なレポートを事前に定義しておきます。
+  inputs:
+    - name: standard_reports
+      type: multiselect
+      options: [TRIAL_BALANCE, OPEN_ITEMS, AGING, JOURNAL, BS_PL]
+      recommended: [TRIAL_BALANCE, OPEN_ITEMS, AGING]
+      option_labels:
+        TRIAL_BALANCE: 試算表（残高試算表）
+        OPEN_ITEMS: 未消込一覧
+        AGING: 債権・債務エイジング
+        JOURNAL: 仕訳帳
+        BS_PL: 貸借対照表・損益計算書
+    - name: report_frequency
+      type: select
+      options: [MONTHLY, WEEKLY, ON_DEMAND]
+      recommended: MONTHLY
+      option_labels:
+        MONTHLY: 月次
+        WEEKLY: 週次
+        ON_DEMAND: 都度（オンデマンド）
+    - name: report_format
+      type: multiselect
+      options: [SCREEN, PDF, EXCEL, CSV]
+      recommended: [SCREEN, EXCEL]
+      option_labels:
+        SCREEN: 画面表示
+        PDF: PDF出力
+        EXCEL: Excel出力
+        CSV: CSV出力
+  depends_on: [FI-CORE-005, FI-CORE-003]
+  produces: [DECISION_LOG, CONFIG_WORKBOOK]

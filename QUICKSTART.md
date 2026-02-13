@@ -163,6 +163,25 @@ curl http://localhost:8001/health
 - [docs/SPEC.md](docs/SPEC.md) - 詳細な仕様
 - [docs/CATALOGUE/fi_core.yml](docs/CATALOGUE/fi_core.yml) - カタログの中身
 
+### データベースマイグレーション（Alembic）
+
+スキーマ変更時は Alembic を使用してマイグレーションを管理できます。
+
+```bash
+# Docker内でマイグレーションを適用
+docker compose exec api alembic upgrade head
+
+# 新しいマイグレーションを自動生成
+docker compose exec api alembic revision --autogenerate -m "説明"
+
+# 現在のリビジョンを確認
+docker compose exec api alembic current
+
+# ローカル開発時
+cd apps/api
+alembic upgrade head
+```
+
 ### カタログをカスタマイズ
 
 1. `docs/CATALOGUE/fi_core.yml` を編集

@@ -7,11 +7,16 @@ from config import get_settings
 settings = get_settings()
 
 # SQLAlchemyエンジン作成
-engine = create_engine(
-    settings.database_url,
+_engine_kwargs = dict(
     pool_pre_ping=True,
-    echo=settings.debug
+    echo=settings.debug,
 )
+# SQLite用の設定
+if settings.database_url.startswith("sqlite"):
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+    _engine_kwargs.pop("pool_pre_ping")  # SQLiteではpool_pre_pingは不要
+
+engine = create_engine(settings.database_url, **_engine_kwargs)
 
 # セッションファクトリ
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

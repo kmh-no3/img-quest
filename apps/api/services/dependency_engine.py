@@ -216,16 +216,61 @@ class DependencyEngine:
         """
         回答に基づいてバックログを展開
         
-        特定の回答により、新しい設定項目が必要になる場合がある
-        （現在のMVPでは全てのP0項目を最初から追加しているため、
-        この機能は将来の拡張用）
+        回答が追加されたことで、依存関係が満たされた新しい設定項目を
+        バックログに自動追加する。P0項目は初期登録済みなので、
+        主にP1項目の動的追加を行う。
         
         Args:
             config_item_id: 回答された設定項目ID
         """
-        # 将来の拡張: 回答の内容に応じて新しい設定項目を追加
-        # 例: 外貨使用を選択した場合、為替関連の設定を追加
-        pass
+        # 現在バックログに存在する設定項目IDのセット
+        existing_backlog_ids = set(
+            item.config_item_id for item in self.backlog_items
+        )
+        
+        # 全設定項目から、まだバックログに追加されていないものを探す
+        for item_id, config_item in self.config_items.items():
+            if item_id in existing_backlog_ids:
+                continue
+            
+            # 依存関係に今回回答された項目が含まれているかチェック
+            depends_on = config_item.depends_on or []
+            if config_item_id not in depends_on:
+                continue
+            
+            # この項目の全ての依存が満たされているかチェック
+            all_deps_have_backlog_or_answered = True
+            for dep_id in depends_on:
+                if dep_id not in existing_backlog_ids and dep_id not in self.answered_config_ids:
+                    all_deps_have_backlog_or_answered = False
+                    break
+            
+            if all_deps_have_backlog_or_answered:
+                # バックログに追加
+                new_item = crud.create_backlog_item(
+                    self.db, self.project_id, item_id
+                )
+                logger.info(
+                    f"Expanded backlog: added {item_id} for project {self.project_id} "
+                    f"(triggered by answer to {config_item_id})"
+                )
+                # 内部状態も更新
+                self.backlog_items.append(new_item)
+                existing_backlog_ids.add(item_id)
+
+
+def expand_backlog_after_answer(db: Session, project_id: int, config_item_id: str, mode_filter: str = None):
+    """
+    回答後にバックログを動的展開
+    
+    Args:
+        db: データベースセッション
+        project_id: プロジェクトID
+        config_item_id: 回答された設定項目ID
+        mode_filter: モードフィルタ（'BEGINNER' / 'EXPERT'）
+    """
+    engine = DependencyEngine(db, project_id, mode_filter=mode_filter)
+    engine.expand_backlog_from_answer(config_item_id)
 
 
 def update_project_backlog(db: Session, project_id: int, mode_filter: str = None):

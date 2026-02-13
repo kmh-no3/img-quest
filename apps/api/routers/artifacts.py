@@ -6,7 +6,7 @@ import schemas
 import models
 from database import get_db
 from dependencies import get_project_or_404
-from services.artifact_generator import generate_artifacts
+from services.artifact_generator import generate_artifacts, ArtifactGenerator
 
 router = APIRouter(prefix="/api/projects/{project_id}/artifacts", tags=["artifacts"])
 
@@ -85,6 +85,54 @@ def download_artifact(
     return Response(
         content=artifact.content,
         media_type="text/markdown",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
+
+@router.get("/export/xlsx")
+def export_xlsx(
+    project: models.Project = Depends(get_project_or_404),
+    db: Session = Depends(get_db)
+):
+    """
+    設定ワークブックをXLSX形式でエクスポート
+    
+    複数シートに分けてサマリー・設定項目・決定事項・テスト観点を出力
+    """
+    generator = ArtifactGenerator(db, project.id)
+    xlsx_content = generator.generate_xlsx_export()
+    
+    filename = f"imgquest_workbook_{project.id}.xlsx"
+    
+    return Response(
+        content=xlsx_content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
+
+@router.get("/export/json")
+def export_json(
+    project: models.Project = Depends(get_project_or_404),
+    db: Session = Depends(get_db)
+):
+    """
+    全決定事項・設定・回答をJSON形式でエクスポート
+    
+    LedgerForge連携を想定した構造化データ出力
+    """
+    generator = ArtifactGenerator(db, project.id)
+    json_content = generator.generate_json_export()
+    
+    filename = f"imgquest_export_{project.id}.json"
+    
+    return Response(
+        content=json_content,
+        media_type="application/json",
         headers={
             "Content-Disposition": f"attachment; filename={filename}"
         }

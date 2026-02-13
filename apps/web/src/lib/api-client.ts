@@ -130,6 +130,12 @@ export const artifactsAPI = {
   
   downloadUrl: (projectId: number, artifactType: string) =>
     `${API_URL}/api/projects/${projectId}/artifacts/${artifactType}/download`,
+  
+  exportJsonUrl: (projectId: number) =>
+    `${API_URL}/api/projects/${projectId}/artifacts/export/json`,
+  
+  exportXlsxUrl: (projectId: number) =>
+    `${API_URL}/api/projects/${projectId}/artifacts/export/xlsx`,
 };
 
 export { APIError };

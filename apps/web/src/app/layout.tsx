@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import '@/styles/globals.css';
+// #region agent log
+import fs from 'fs';
+try { fs.appendFileSync(process.cwd() + '/../../.cursor/debug.log', JSON.stringify({location:'layout.tsx',message:'RootLayout rendered server-side',timestamp:Date.now()}) + '\n'); } catch(e) {}
+// #endregion
 
 export const metadata: Metadata = {
   title: 'IMG-Quest',
